@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v6
       - name: 检查脚本与经营规则
         run: |
+          node --check dist/customers.js
           node --check dist/engine.js
           node --check dist/game.js
           node --check dist/audio.js
