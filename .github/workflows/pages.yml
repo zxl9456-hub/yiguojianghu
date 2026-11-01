@@ -22,6 +22,8 @@ jobs:
         run: |
           node --check dist/engine.js
           node --check dist/game.js
+          node --check dist/audio.js
+          node tests/audio.test.cjs
           node tests/simulation.test.cjs
       - name: 配置 Pages
         uses: actions/configure-pages@v5

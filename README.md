@@ -10,7 +10,7 @@
 
 ![山城怪趣：一锅江湖游戏画面](docs/gameplay.png)
 
-离线版可直接用浏览器打开 `dist/index.html`，所有脚本、美术和样式都在本地，无运行依赖。部分浏览器限制本地文件存档时，可在此目录运行：
+所有脚本、美术与音频均随游戏提供，无运行依赖。为正常加载配乐和存档，离线试玩建议在此目录启动本地静态服务：
 
 ```sh
 python3 -m http.server 4173 --directory dist
@@ -28,7 +28,10 @@ python3 -m http.server 4173 --directory dist
 - 七天原创事件，每天两种经营选择；奖励包含金钱、招牌菜单、免费设施、食材和永久服务收益。
 - 采购、库存报损、小份菜、套餐保存、跑堂、备菜台、猫软垫、扩桌。
 - 熟客记忆、经营账本、可下载小票、纪念章、七日后的继续经营。
-- 暂停、1× / 2× / 3×、合成音效、移动端布局、本浏览器自动存档。
+- 三段江湖器乐：开张、营业、打烊自动切换；营业主题使用本项目在 Suno v6 新生成的原创器乐，已处理循环与响度。
+- 开门锣、开锅咕嘟、碗碟、铜钱收账、猫叫呼噜、收台、采购、变脸锣鼓和奖励音效。
+- 「江湖留声机」分别调整音乐、音效和环境音；静音记忆、后台停声、变脸时配乐自动让位。
+- 暂停、1× / 2× / 3×、移动端布局、本浏览器自动存档。
 
 ## 怎么玩
 
@@ -55,7 +58,9 @@ python3 -m http.server 4173 --directory dist
 ```sh
 node --check dist/engine.js
 node --check dist/game.js
+node --check dist/audio.js
 node tests/simulation.test.cjs
+node tests/audio.test.cjs
 ```
 
 自动检查覆盖口味取舍、顺序收益、订单原子性、撸猫限制、存读档、变脸奖励、七天完整进程与现金守恒、员工自动接单。
@@ -65,3 +70,5 @@ node tests/simulation.test.cjs
 本仓库通过 GitHub Actions 自动检查并发布 `dist/` 到 GitHub Pages。推送到 `main` 后，在仓库的 Actions 页面查看「发布一锅江湖」；检查通过后自动更新在线版本。也可以手动运行 workflow。
 
 修改游戏规则用 `dist/engine.js`，修改界面用 `dist/game.js` 和 `dist/style.css`，替换美术用 `dist/assets/`。提交前运行上方检查命令。无需配置 API 密钥或服务器。
+
+音乐来源、声音设计和 Suno 创作说明见 [音乐与音效](音乐与音效.md)。音乐首次点按后开始播放；点击右上角 ♪ 调整声音。

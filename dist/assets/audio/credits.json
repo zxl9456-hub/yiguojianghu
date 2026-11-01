@@ -1,0 +1,32 @@
+[
+  {
+    "file": "opening.mp3",
+    "title": "临江坡开张",
+    "bpm": 96,
+    "bars": 16,
+    "seconds": 40.0,
+    "rms": 0.1351,
+    "peak": 0.85,
+    "source": "Original procedural composition; no third-party samples"
+  },
+  {
+    "file": "service.mp3",
+    "title": "锅里有江湖",
+    "seconds": 75,
+    "source": "Suno v6 original instrumental created for this game",
+    "source_url": "https://suno.com/song/a840a96c-ee28-442a-873b-aa4c69f97012",
+    "edit": "75-second gameplay loop with 650 ms boundary blend; loudness matched to opening and evening cues",
+    "rms": 0.14,
+    "peak": 0.7347
+  },
+  {
+    "file": "evening.mp3",
+    "title": "收锅听晚风",
+    "bpm": 76,
+    "bars": 16,
+    "seconds": 50.5263,
+    "rms": 0.14,
+    "peak": 0.6179,
+    "source": "Original procedural composition; no third-party samples"
+  }
+]
