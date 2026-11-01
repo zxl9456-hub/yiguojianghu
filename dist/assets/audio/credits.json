@@ -2,22 +2,28 @@
   {
     "file": "opening.mp3",
     "title": "临江坡开张",
-    "bpm": 96,
-    "bars": 16,
-    "seconds": 40.0,
-    "rms": 0.1351,
-    "peak": 0.85,
-    "source": "Original procedural composition; no third-party samples"
+    "seconds": 30.3833,
+    "source": "Suno v6 original instrumental created for this game",
+    "source_url": "https://suno.com/song/05a3399d-a2ce-4a4b-9a84-2481e76b2d5e",
+    "target_bpm": 126,
+    "source_start_seconds": 9.901542,
+    "source_end_seconds": 40.284853,
+    "edit": "400 ms boundary blend; loudness matched to other gameplay cues",
+    "rms": 0.14,
+    "peak": 0.6823
   },
   {
     "file": "service.mp3",
-    "title": "锅里有江湖",
-    "seconds": 75,
+    "title": "老街起锅",
+    "seconds": 60.2268,
     "source": "Suno v6 original instrumental created for this game",
-    "source_url": "https://suno.com/song/a840a96c-ee28-442a-873b-aa4c69f97012",
-    "edit": "75-second gameplay loop with 650 ms boundary blend; loudness matched to opening and evening cues",
+    "source_url": "https://suno.com/song/05a3399d-a2ce-4a4b-9a84-2481e76b2d5e",
+    "target_bpm": 126,
+    "source_start_seconds": 41.70127,
+    "source_end_seconds": 101.928027,
+    "edit": "400 ms boundary blend; loudness matched to other gameplay cues",
     "rms": 0.14,
-    "peak": 0.7347
+    "peak": 0.6111
   },
   {
     "file": "evening.mp3",

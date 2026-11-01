@@ -2,8 +2,8 @@
 (function (root) {
   'use strict';
   const TRACKS = {
-    prep: { file: 'opening', title: '临江坡开张', detail: '竹笛领路 · 琵琶拨弦 · 备菜小调' },
-    service: { file: 'service', title: '锅里有江湖', detail: '竹笛拨弦 · 低音轻摇 · 老街正热闹' },
+    prep: { file: 'opening', title: '临江坡开张', detail: '轻快拨弦 · 街边鼓点 · 小店开张' },
+    service: { file: 'service', title: '老街起锅', detail: '利落鼓点 · 贝斯吉他 · 江湖正热闹' },
     settlement: { file: 'evening', title: '收锅听晚风', detail: '低笛慢板 · 阮声余韵 · 留一盏灯' }
   };
   const KEY = 'yiguojianghu-audio-v1';
@@ -79,7 +79,7 @@
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 20000);
         try {
-          const response = await fetch('assets/audio/' + file + '.mp3', { signal: controller.signal });
+          const response = await fetch('assets/audio/' + file + '.mp3?v=street-v3', { signal: controller.signal });
           if (!response.ok) throw new Error('music unavailable');
           return await ctx.decodeAudioData(await response.arrayBuffer());
         } finally { clearTimeout(timeout); }
