@@ -1,0 +1,8 @@
+.DS_Store
+.AppleDouble
+node_modules/
+.openai/
+work/
+.env
+.env.*
+*.log
