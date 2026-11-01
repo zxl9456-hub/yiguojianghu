@@ -1,6 +1,7 @@
 /* 一锅江湖 — deterministic, dependency-free simulation. */
 (function(root){
 'use strict';
+const N=root.JianghuNeighborhood||(typeof module!=='undefined'?require('./neighborhood.js'):null);
 const C=root.JianghuCustomers||(typeof module!=='undefined'?require('./customers.js'):null);
 const F={
  mushroom:{name:'山珍菌菇',short:'菌菇',icon:'🍄',cost:6,price:14,kind:'fresh',day:1,desc:'鲜味 +2 · 先下更香'},
@@ -33,7 +34,7 @@ const EVENTS=[
  {name:'一个人，也好好吃',kicker:'小份大满足 · 第六回',story:'老街发起“一人食地图”。阿青把你的店画进地图，还画上了蜷在椅子边的猫。',modes:[['small','半份百味','小份拼出更多花样；少量多样奖励 +8'],['calm','安静猫猫席','安静客人评价 +6；撸猫耐心额外 +8 秒']],goal:'完成 3 桌独食好评，不超预算',reward:130,badge:'一人食老地方',source:'重庆餐厅小份菜、半份菜实践报道，2020'},
  {name:'一街人，开锅节',kicker:'七日终章 · 老街的饭局',story:'老罗、阿青、同学们和三位猫掌柜都来了。师傅换好戏服，锅里的汤也熬好了。这条街，终于被你养熟了。',modes:[['feast','热热闹闹过节','多 2 桌街坊，完成 6 桌好评'],['family','熟客团圆饭','完成 5 桌好评，给 3 桌安排撸猫']],goal:'用招牌锅与猫咪，招待一路认识的人',reward:200,badge:'一锅江湖',source:'原创终章，由前六天关系和经营结果汇合'}
 ];
-const UP={staff:{name:'聘请跑堂小满',cost:160,day:2,desc:'等待 8 秒后，按保存套餐自动接单；工钱 20 / 天'},station:{name:'添一张备菜台',cost:120,day:2,desc:'每桌备锅 −3 秒、每轮上菜 −2 秒'},cat:{name:'猫猫靠窗软垫',cost:90,day:2,desc:'撸猫额外 +3 评价，猫咪恢复更快'},tables:{name:'扩成六张桌',cost:240,day:4,desc:'增加 2 桌；大客流更从容'}};
+const UP={staff:{name:'安排跑堂岗位',cost:160,day:2,desc:'聘小满按套餐接普通桌；工钱 20 / 天。更多性格到「伙计班底」选择'},station:{name:'添一张备菜台',cost:120,day:2,desc:'每桌备锅 −3 秒、每轮上菜 −2 秒'},cat:{name:'猫猫靠窗软垫',cost:90,day:2,desc:'撸猫额外 +3 评价，猫咪恢复更快'},tables:{name:'扩成六张桌',cost:240,day:4,desc:'增加 2 桌；大客流更从容'}};
 const clone=x=>JSON.parse(JSON.stringify(x));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function baseFresh(){return {version:1,day:1,phase:'prep',cash:420,rep:35,stock:{mushroom:8,beef:8,tofu:8,greens:8,balls:0,dessert:0,potato:0,blood:0},upgrades:{},cats:[{name:'油碟',bond:0,cd:0},{name:'糍粑',bond:0,cd:0},{name:'煤球',bond:0,cd:0}],regulars:{},recipes:[],badges:[],history:[],tables:[],elapsed:0,mode:'warm',muted:false,stats:null,logs:[],finished:false};}
@@ -56,11 +57,11 @@ function baseTick(s,dt){if(s.phase!=='service')return;dt=Math.min(dt,2);s.elapse
  }else if(t.status==='dirty'){t.cleanTime-=dt;if(t.cleanTime<=0)t.status='empty';}}
  seat(s);if(s.nextGuest>=s.schedule.length&&s.tables.every(t=>t.status==='empty'))closeDay(s);}
 function baseAddDish(s,id){let t=s.tables[id];if(!t||t.status!=='eating'||!t.addOffer)return '暂时没有加单';const f=F.beef;if(s.stock.beef<1)return '肥牛库存不足';if(t.m.price+f.price>t.guest.budget)return '这桌剩余预算不够，先不加啦';s.stock.beef--;s.stats.food+=f.cost;t.m.price+=f.price;t.m.duration+=4;t.score=clamp(t.score+4,0,100);t.addOffer=false;t.added=true;t.message='再来一盘！这个汤底越涮越香。';return null;}
-function buy(s,id,n=4){if(!F[id]||F[id].day>s.day)return false;let cost=F[id].cost*n;if(s.cash<cost)return false;s.cash-=cost;s.stock[id]=Math.round((s.stock[id]+n)*100)/100;return true;}
-function upgrade(s,id){let u=UP[id];if(!u||u.day>s.day||s.upgrades[id]||s.cash<u.cost||s.phase==='service')return false;s.cash-=u.cost;s.upgrades[id]=true;return true;}
+function buy(s,id,n=4){if(s.challenge)return false;if(!F[id]||F[id].day>s.day)return false;let cost=F[id].cost*n;if(s.cash<cost)return false;s.cash-=cost;s.stock[id]=Math.round((s.stock[id]+n)*100)/100;return true;}
+function upgrade(s,id){if(s.challenge)return false;let u=UP[id];if(!u||u.day>s.day||s.upgrades[id]||s.cash<u.cost||s.phase==='service')return false;s.cash-=u.cost;s.upgrades[id]=true;return true;}
 function rewardText(day){return ['存入街坊招牌套餐','免费猫猫软垫','菌菇、肥牛各补 4 份','以后表演费减半','学生四味套餐存入招牌','独食客人永久 +3 评价','庆典彩旗与日常经营'][Math.min(6,day-1)];}
 function baseGoal(s){let a=s.stats,good=a.records.filter(r=>r.score>=80);switch(Math.min(s.day,7)){case 1:return a.served>=3&&good.length>=2;case 2:return a.petTables.length>=3&&good.length>=3;case 3:return good.length>=(s.mode==='busy'?5:4);case 4:return a.showHits>=2&&good.length>=3;case 5:return a.records.filter(r=>r.style==='student'&&r.unique>=4).length>=3;case 6:return good.filter(r=>r.style==='quiet').length>=3;case 7:return good.length>=(s.mode==='feast'?6:5)&&(s.mode==='feast'||a.petTables.length>=3);}}
-function baseCloseDay(s){if(s.phase!=='service')return;let a=s.stats;a.goal=goal(s);a.reward=a.goal?event(s).reward+(s.mode==='busy'&&s.day===3?60:0):0;if(a.goal&&!s.badges.includes(event(s).badge)){s.badges.push(event(s).badge);if(s.day===1&&s.recipes.length<6)s.recipes.push({name:'街坊第一锅',plan:defaultPlan(s,G[0])});if(s.day===2)s.upgrades.cat=true;if(s.day===3){s.stock.mushroom+=4;s.stock.beef+=4;}if(s.day===5&&s.recipes.length<6)s.recipes.push({name:'同学会四味拼盘',plan:defaultPlan(s,G[5])});}let waste=0;for(let id of unlocked(s)){let n=Math.max(0,Math.floor((s.stock[id]-8)*.12));s.stock[id]-=n;waste+=n*F[id].cost;}a.waste=waste;a.wages=25+(s.upgrades.staff?20:0);s.cash+=a.reward-a.wages;a.profit=Math.round(a.revenue+a.tips-a.food-a.pots-a.expense-a.waste-a.wages);a.endCash=s.cash;s.history.push({day:s.day,profit:a.profit,served:a.served,goal:a.goal});s.phase='settlement';log(s,`打烊啦！营业净收益 ¥${a.profit}`);}
+function baseCloseDay(s){if(s.phase!=='service')return;let a=s.stats;a.goal=goal(s);a.reward=a.goal?event(s).reward+(s.mode==='busy'&&s.day===3?60:0):0;if(a.goal&&!s.challenge&&!s.badges.includes(event(s).badge)){s.badges.push(event(s).badge);if(s.day===1&&s.recipes.length<6)s.recipes.push({name:'街坊第一锅',plan:defaultPlan(s,G[0])});if(s.day===2)s.upgrades.cat=true;if(s.day===3){s.stock.mushroom+=4;s.stock.beef+=4;}if(s.day===5&&s.recipes.length<6)s.recipes.push({name:'同学会四味拼盘',plan:defaultPlan(s,G[5])});}let waste=0;for(let id of unlocked(s)){let n=Math.max(0,Math.floor((s.stock[id]-8)*.12));s.stock[id]-=n;waste+=n*F[id].cost;}a.waste=waste;a.wages=25+(s.upgrades.staff?20:0)+N.wages(s);s.cash+=a.reward-a.wages;a.profit=Math.round(a.revenue+a.tips-a.food-a.pots-a.expense-a.waste-a.wages);a.endCash=s.cash;s.history.push({day:s.day,profit:a.profit,served:a.served,goal:a.goal});s.phase='settlement';log(s,`打烊啦！营业净收益 ¥${a.profit}`);}
 function baseNext(s){if(s.phase!=='settlement')return false;s.day++;s.phase='prep';s.mode=event(s).modes[0][0];s.tables=[];s.stats=null;s.cats.forEach(c=>c.cd=0);if(s.cash<100){s.cash+=180;log(s,'街坊预付订餐款 +180，帮你继续开锅。');}if(s.day===2){s.stock.balls+=4;s.stock.dessert+=4;}if(s.day===3)s.stock.potato+=4;if(s.day===4)s.stock.blood+=4;return true;}
 function serialize(s){return JSON.stringify(s);}
 function baseRestore(data){try{let s=JSON.parse(data);if(s.version!==1||!['prep','service','settlement'].includes(s.phase)||!Number.isFinite(s.cash)||!Array.isArray(s.tables)||!s.stock||!s.cats||s.day<1)return null;return s;}catch{return null;}}
@@ -87,6 +88,7 @@ EVENTS[5].modes[1][2]='清静的氛围，安静客人餐食评价 +6';
 UP.cat.desc='猫咪专用软垫，陪伴后的休息缩短 4 秒';
 EVENTS[3].goal='完成一场变脸演出，至少 2 桌看完，完成 3 桌好评';
 function ensure(s){
+ N.ensure(s);
  s.unlocks ||= {};s.showPlan ||= {type:'short',at:null};
  if(s.stats){s.stats.photos ||=0;s.stats.storyRewards ||= [];s.stats.showRemaining ||=0;s.stats.showAudience ||= [];s.stats.showWatched ||=0;if(s.stats.showFinished===undefined)s.stats.showFinished=!!s.stats.showDone;}
  s.tables.forEach(t=>{t.wishes ||= {};t.mood ||=0;t.catTip ||=0;t.seat ||=seatType(s,t.id,s.tables.length);if(t.catActive===undefined)t.catActive=false;if(t.status==='eating'&&t.m&&t.m.essentialOk===undefined){const check=metrics(s,t.guest,t.plan);t.m.essentialOk=check.essentialOk;t.m.requirements=check.requirements;}});
@@ -95,7 +97,7 @@ function ensure(s){
 }
 function fresh(){return ensure(baseFresh());}
 function restore(data){const s=baseRestore(data);return s?ensure(s):null;}
-function event(s){return s.day<=7?baseEvent(s):DAILY[(s.day-8)%DAILY.length];}
+function event(s){if(s.challenge)return {name:s.challenge.name,kicker:'街坊怪挑战 · '+s.challenge.code,story:s.challenge.desc,modes:[['warm','固定挑战条件','同样库存、同样客人；营业暂停时可以想一想']],goal:s.challenge.desc,reward:0,badge:'挑战通关'};return s.day<=7?baseEvent(s):DAILY[(s.day-8)%DAILY.length];}
 function dayGuests(s){
  let ids=s.day<=7?baseDayGuests(s):[[3,0,3,4,2],[5,5,0,5,3],[6,1,6,2,6,3],[7,3,7,0,7],[4,3,6,0,2,7],[0,3,2,4,5,7]][(s.day-8)%6].slice();
  if(s.day>7&&s.mode==='busy')ids.push(6,6);
@@ -103,7 +105,7 @@ function dayGuests(s){
  if(s.unlocks.aqingReservation&&!ids.includes(3))ids.push(3);
  if(s.day>7){const returning=G.map((g,i)=>({g,i})).filter(x=>(s.regulars[x.g.id]?.returnInterest||0)>=10&&ids.filter(n=>n===x.i).length<2);if(returning.length)ids.push(returning[(s.day-8)%returning.length].i);}
  if(s.cats[0].bond>=40&&ids.filter(x=>x===7).length<2)ids.push(7);
- return ids;
+ return N.dayGuests(s,ids);
 }
 function seatType(s,id,n){return s.upgrades.bar&&id===0?'bar':s.upgrades.long&&id===n-1?'long':s.upgrades.window&&id===n-2?'window':'normal';}
 function seatName(type){return {bar:'快涮吧台',long:'拼接长桌',window:'安静窗边',normal:'街坊方桌'}[type||'normal'];}
@@ -126,13 +128,13 @@ function open(s){
  Object.assign(s.stats,{photos:0,storyRewards:[],showFinished:false,showRemaining:0,showAudience:[],showWatched:0});
  s.stats.specialCount=s.tables.filter(t=>t.special).length;
  if(['busy','feast'].includes(s.mode))s.schedule.forEach((v,i)=>v.at=i===0?0:14+Math.floor((i-1)/3)*32+(i-1)%3*5);
- return true;
+ N.afterOpen(s);return true;
 }
 function seat(s){
  if(s.closing||s.nextGuest>=s.schedule.length)return;
  const item=s.schedule[s.nextGuest];if(item.at>s.elapsed)return;
- const g=decorateGuest(s,clone(G[item.id]));
- let free=s.tables.filter(t=>t.status==='empty'&&capacity(seatType(s,t.id,s.tables.length))>=g.size);
+ const g=N.guest(s,decorateGuest(s,clone(G[item.id])),item);
+ let free=s.tables.filter(t=>t.status==='empty'&&N.seatAvailable(s,t)&&capacity(seatType(s,t.id,s.tables.length))>=g.size);
  free.sort((a,b)=>{const rank=t=>{const k=seatType(s,t.id,s.tables.length);return g.style==='quiet'&&k==='window'?0:g.size===1&&k==='bar'?1:g.size>4&&k==='long'?0:k==='normal'?2:3;};return rank(a)-rank(b);});
  if(!free.length){if(s.elapsed-item.at>55){s.nextGuest++;s.stats.lost++;log(s,g.name+'等位太久，改天再来。');}return;}
  const t=free[0],prior=s.regulars[g.id];
@@ -141,7 +143,7 @@ function seat(s){
  Object.assign(t,{status:'waiting',guest:g,plan:null,m:null,progress:0,round:-1,score:0,added:false,addOffer:false,photoPending:false,stockIssue:false,receipt:null,wait:0,patience:g.patience+(s.mode==='warm'?15:0),petBonus:0,petCount:0,cat:(t.id+s.nextGuest)%3,visit:s.nextGuest,fresh:0,rich:0,mood:0,catTip:0,wishes:{},catActive:false,seat:seatType(s,t.id,s.tables.length),special});
  t.cast=C.assign(g,s.nextGuest,s.tables.filter(x=>x!==t&&['waiting','eating'].includes(x.status)).flatMap(x=>C.forTable(x)));
  t.message=special?'重点饭局 · '+g.quote:prior?'又见面啦！'+g.quote:g.quote;
- s.nextGuest++;log(s,`${t.id+1} 桌 · ${g.name}${special?'（需要嬢嬢拿主意）':''}`);
+ s.nextGuest++;N.onSeat(s,t,item);log(s,`${t.id+1} 桌 · ${g.name}${special?'（需要嬢嬢拿主意）':''}`);
 }
 function metrics(s,g,plan){
  const m=baseMetrics(s,g,plan);if(!m.rounds)return m;
@@ -163,16 +165,17 @@ function metrics(s,g,plan){
  if(g.meat)m.requirements.push({label:'想吃肉的客人有肉吃',ok:foods.some(id=>['beef','blood'].includes(id))});
  if(g.style==='rush')m.requirements.push({label:'等餐与用餐合计不超过 '+g.limit+' 秒',ok:m.totalTime<=g.limit});
  if(g.id==='luo'&&g.storyStep===1)m.requirements.push({label:'体面地给老罗留清汤',ok:plan.discreet===true});
- m.essentialOk=m.requirements.every(x=>x.ok);
+ m.essentialOk=m.requirements.every(x=>x.ok);m.potentialScore=m.score;
  if(!m.essentialOk)m.score=Math.min(69,m.score);
  if(m.essentialOk&&g.style==='social'&&g.id==='visitor'&&new Set(plan.broths).size>=3){m.score=clamp(m.score+7,0,100);m.reasons.push('游客尝到三种锅味，四格锅派上用场');}
  if(t?.special&&!plan.choice)m.errors.push('先选一种招待方案，也可以选择自己搭配');
- return m;
+ return N.metrics(s,g,plan,m);
 }
 function defaultPlan(s,g){
  let p=baseDefaultPlan(s,g);p.discreet=true;
  if(g.size>4)p={pot:'dual',broths:['red',s.day>=2?'mushroom':'clear'],rounds:[['mushroom','greens'],['beef','balls'],['tofu','potato']],small:false,discreet:true};
  if(g.style==='quiet'&&g.size===2)p.small=false;
+ if(g.requestDish){const d=s.city.dishes.find(x=>x.id===g.requestDish);if(d){p.signature=d.id;if(!p.rounds.flat().includes(d.base)){const room=p.rounds.find(r=>r.length<2);if(room)room.push(d.base);else p.rounds[p.rounds.length-1][0]=d.base;}}}
  return p;
 }
 function planChoices(s,t){
@@ -202,7 +205,7 @@ function serve(s,id,plan){
  t.wishes.birthday=t.guest.style==='birthday'&&m.rounds[m.rounds.length-1].includes('dessert');
  return m;
 }
-function autoServe(s,t){if(t.special){t.message='重点饭局：请嬢嬢选一种招待方案。';return;}const candidates=s.recipes.map(r=>r.plan).concat([defaultPlan(s,t.guest)]);if(t.guest.style==='rush')candidates.push({...defaultPlan(s,t.guest),fast:true});const best=candidates.map(plan=>({plan,m:metrics(s,t.guest,plan)})).filter(x=>!x.m.errors.length&&x.m.essentialOk).sort((a,b)=>b.m.score-a.m.score||a.m.cost-b.m.cost)[0];if(best){t.stockIssue=false;serve(s,t.id,best.plan);}else{const missing=[...new Set(candidates.flatMap(p=>metrics(s,t.guest,p).errors).filter(x=>x.includes('库存不足')))];t.stockIssue=missing.length>0;t.message=missing.length?'小满：'+missing.join('、')+'，请补货。':'小满：现有菜单没照顾好基本需求，请嬢嬢亲自拿主意。';}}
+function autoServe(s,t){if(!N.autoReady(s,t))return;if(t.special&&!N.canAutoSpecial(s,t)){t.message='重点饭局：请嬢嬢选一种招待方案。';return;}const candidates=s.recipes.map(r=>r.plan).concat(t.special?planChoices(s,t).map(c=>c.plan):[defaultPlan(s,t.guest)]);if(t.guest.style==='rush')candidates.push({...defaultPlan(s,t.guest),fast:true});const best=candidates.map(plan=>({plan,m:metrics(s,t.guest,plan)})).filter(x=>!x.m.errors.length&&x.m.essentialOk).sort((a,b)=>b.m.score-a.m.score||a.m.cost-b.m.cost)[0];if(best){t.stockIssue=false;serve(s,t.id,best.plan);}else{const missing=[...new Set(candidates.flatMap(p=>metrics(s,t.guest,p).errors).filter(x=>x.includes('库存不足')))];t.stockIssue=missing.length>0;t.message=missing.length?'小满：'+missing.join('、')+'，请补货。':'小满：现有菜单没照顾好基本需求，请嬢嬢亲自拿主意。';}}
 function releaseCat(s,c){const t=s.tables[c.table];if(t){t.catActive=false;t.photoPending=false;}c.table=null;c.remaining=0;c.cd=s.upgrades.cat?Math.max(8,CAT_ROLES[s.cats.indexOf(c)].rest-4):CAT_ROLES[s.cats.indexOf(c)].rest;}
 function pet(s,id,catId){
  ensure(s);const t=s.tables[id];if(!t||!['waiting','eating'].includes(t.status))return '先选一桌正在等餐或用餐的客人';
@@ -212,7 +215,7 @@ function pet(s,id,catId){
  if(t.petCount>=1)return '这一桌已经安排过陪伴啦，让猫猫照顾下一桌';
  t.cat=idx;t.petCount=1;t.catActive=true;c.table=id;c.remaining=CAT_ROLES[idx].duration;c.bond+=4;
  t.mood ||=0;t.catTip ||=0;t.wishes ||= {};
- if(idx===0){t.mood+=t.guest.style==='cat'?8:3;t.catTip+=t.guest.style==='cat'?8:2;t.photoPending=t.guest.style==='cat';}
+ if(idx===0){t.mood+=t.guest.style==='cat'?8:3;t.catTip+=t.guest.style==='cat'?8:2;t.photoPending=t.guest.style==='cat'||!!t.guest.photoWish;}
  if(idx===1){const waiting=t.status==='waiting';t.patience+=waiting?20:0;t.mood+=waiting?6:3;t.catTip+=waiting?3:1;}
  if(idx===2){const quiet=t.guest.style==='quiet';t.mood+=quiet?(t.seat==='window'?10:7):2;t.catTip+=quiet?5:1;t.wishes.quietCat=quiet;}
  s.stats.pets++;if(!s.stats.petTables.includes(t.visit))s.stats.petTables.push(t.visit);
@@ -238,13 +241,13 @@ function show(s,hits=0,type){
  if(hits===3&&!s.badges.includes('三连绝活'))s.badges.push('三连绝活');log(s,'川剧'+(type==='finale'?'压轴场':'短场')+'开演，客人照常吃饭。');return true;
 }
 function moveTable(s,from,to){
- const t=s.tables[from],dest=s.tables[to];if(!t||!dest||dest.status!=='empty'||!['waiting','eating'].includes(t.status))return '请选择一张空桌';
+ const t=s.tables[from],dest=s.tables[to];if(!t||!dest||dest.status!=='empty'||!N.seatAvailable(s,dest)||!['waiting','eating'].includes(t.status))return '请选择一张空桌';
  const kind=seatType(s,to,s.tables.length);if(capacity(kind)<t.guest.size)return '这张桌坐不下这组客人';
  const old=t.id;t.id=to;t.seat=kind;s.tables[to]=t;s.tables[from]={id:from,status:'empty',seat:seatType(s,from,s.tables.length)};
  s.cats.forEach(c=>{if(c.table===old)c.table=to;});log(s,t.guest.name+'换到 '+seatName(kind));return null;
 }
 function tick(s,dt){
- if(s.phase!=='service')return;ensure(s);dt=Math.min(dt,2);
+ if(s.phase!=='service')return;ensure(s);dt=Math.min(dt,2);N.tick(s);
  s.cats.forEach(c=>{if(c.remaining>0){c.remaining=Math.max(0,c.remaining-dt);const t=s.tables[c.table];if(c.remaining===0||!t||!['waiting','eating'].includes(t.status)){if(t?.photoPending&&c.remaining===0&&['waiting','eating'].includes(t.status)){t.wishes.photo=true;t.photoPending=false;s.stats.photos++;t.message='油碟合影留念，猫掌柜心愿完成！';}releaseCat(s,c);}}});
  if(s.stats.showRemaining>0){s.stats.showRemaining=Math.max(0,s.stats.showRemaining-dt);if(s.stats.showRemaining===0){s.stats.showFinished=true;s.stats.showWatched=0;for(const a of s.stats.showAudience){const t=s.tables.find(x=>x.visit===a.visit);if(t?.visit===a.visit&&['waiting','eating'].includes(t.status)&&a.willWatch){t.mood=(t.mood||0)+a.benefit+(s.stats.showHits||0);t.wishes ||= {};t.wishes.show=a.benefit>0;if(a.benefit>0)s.stats.showWatched++;t.message=a.benefit<0?'这场太热闹，下次想坐安静窗边。':'好戏看完啦，这顿饭又多一个念想。';}}log(s,'师傅谢幕，'+s.stats.showWatched+' 桌看完了好戏。');}}
  baseTick(s,dt);
@@ -256,7 +259,7 @@ function finish(s,t){
  t.essentialOk=t.m.essentialOk!==false;
  if(t.guest.style==='rush'&&t.wait+t.m.duration>t.guest.limit){t.essentialOk=false;t.m.reasons.push('等餐与用餐合计 '+Math.ceil(t.wait+t.m.duration)+' 秒，没赶上行程');}
  if(!t.essentialOk)t.score=Math.min(69,t.score);
- baseFinish(s,t);const r=s.stats.records[s.stats.records.length-1];r.essentialOk=t.essentialOk;r.mood=t.mood||0;r.wishes=clone(t.wishes||{});r.seat=t.seat;r.special=!!t.special;r.wait=Math.round(t.wait);r.duration=t.m.duration;
+ baseFinish(s,t);const r=s.stats.records[s.stats.records.length-1];r.essentialOk=t.essentialOk;r.mood=t.mood||0;r.wishes=clone(t.wishes||{});r.seat=t.seat;r.special=!!t.special;r.wait=Math.round(t.wait);r.duration=t.m.duration;r.broths=clone(t.m.broths);
  if(!t.essentialOk)s.rep=Math.max(0,s.rep-2);
  r.reasons=r.reasons.filter(x=>!x.startsWith('猫咪陪伴'));if(t.petCount)r.reasons.push(CAT_ROLES[t.cat].name+'持续陪伴，心情 '+t.mood+'；基本需求独立结算');
  const extra=t.essentialOk?Math.max(0,(t.catTip||0)+Math.floor(Math.max(0,t.mood||0)/3)):0;
@@ -272,16 +275,18 @@ function finish(s,t){
   if(stage===3){if(t.guest.id==='luo')s.unlocks.luoSauce=true;else{s.upgrades.window=true;s.unlocks.aqingReservation=true;}}
   s.stats.storyRewards ||= [];s.stats.storyRewards.push(message);regular.memory=message;log(s,message);
  }
+ N.finish(s,t);
 }
 function goodRecords(s){return s.stats.records.filter(r=>r.score>=80&&r.essentialOk!==false);}
 function goal(s){
+ if(s.challenge)return N.challengeGoal(s);
  const a=s.stats,good=goodRecords(s);
  if(s.day<=7){if(s.day===4)return a.showFinished&&a.showWatched>=2&&good.length>=3;if(s.day===5)return good.filter(r=>r.style==='student'&&r.unique>=4).length>=3;return baseGoal(s);}
  switch(event(s).key){case'rain':return good.length>=3&&a.petTables.length>=1;case'student':return good.filter(r=>r.style==='student'&&r.unique>=4).length>=2;case'tourist':return good.length>=4&&good.some(r=>r.id==='movie');case'cat':return good.length>=3&&a.photos>=2;case'opera':return a.showFinished&&a.showWatched>=2&&good.length>=3;default:return good.length>=4;}
 }
-function closeDay(s){if(s.stats?.showRemaining>0)return;baseCloseDay(s);}
-function next(s){const ok=baseNext(s);if(ok){ensure(s);s.showPlan={type:'short',at:null};s.cats.forEach(c=>{c.remaining=0;c.table=null;c.cd=0;});}return ok;}
-function addDish(s,id){const msg=baseAddDish(s,id);const t=s.tables[id];if(!msg&&t?.m.essentialOk===false)t.score=Math.min(69,t.score);return msg;}
+function closeDay(s){if(s.stats?.showRemaining>0||!N.canClose(s))return;baseCloseDay(s);}
+function next(s){if(s.challenge)return false;const ok=baseNext(s);if(ok){ensure(s);N.next(s);s.showPlan={type:'short',at:null};s.cats.forEach(c=>{c.remaining=0;c.table=null;c.cd=0;});}return ok;}
+function addDish(s,id){if(s.tables[id]?.guest?.late)return '限量套餐按原单上菜，余料留给约好的晚归街坊。';const msg=baseAddDish(s,id);const t=s.tables[id];if(!msg&&t?.m.essentialOk===false)t.score=Math.min(69,t.score);return msg;}
 
 function hostTea(s){
  if(s.phase!=='service')return '开门后再请街坊喝茶嘛。';
@@ -293,5 +298,5 @@ function hostTea(s){
  tables.forEach(t=>{t.mood=(t.mood||0)+3;if(t.status==='waiting')t.patience+=12;t.message='嬢嬢请了壶茶，嗓子和心情都润了。';});
  log(s,'梅嬢嬢请 '+tables.length+' 桌街坊喝茶：心情 +3，等餐耐心 +12 秒。');return null;
 }
-const api={hostTea,CAT_ROLES,DAILY,dayGuests,decorateGuest,planChoices,seatName,seatType,capacity,storyStep,catStatus,showPreview,scheduleShow,moveTable,F,B,P,G,EVENTS,UP,fresh,event,unlocked,open,seat,metrics,serve,defaultPlan,tick,pet,addDish,buy,upgrade,showFee,rewardText,show,goal,closeDay,next,serialize,restore,clone};root.Hotpot=api;if(typeof module!=='undefined')module.exports=api;
+const api={hostTea,CAT_ROLES,DAILY,dayGuests,decorateGuest,planChoices,seatName,seatType,capacity,storyStep,catStatus,showPreview,scheduleShow,moveTable,F,B,P,G,EVENTS,UP,fresh,event,unlocked,open,seat,metrics,serve,defaultPlan,tick,pet,addDish,buy,upgrade,showFee,rewardText,show,goal,closeDay,next,serialize,restore,clone,...N.publicAPI};N.init(api);root.Hotpot=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);

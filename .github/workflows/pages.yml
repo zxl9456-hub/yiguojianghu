@@ -21,11 +21,13 @@ jobs:
       - name: 检查脚本与经营规则
         run: |
           node --check dist/customers.js
+          node --check dist/neighborhood.js
           node --check dist/engine.js
           node --check dist/game.js
           node --check dist/audio.js
           node tests/audio.test.cjs
           node tests/simulation.test.cjs
+          node tests/neighborhood.test.cjs
       - name: 配置 Pages
         uses: actions/configure-pages@v5
       - name: 上传网页
